@@ -1,0 +1,897 @@
+dossier components fih 7 fichiers 
+admindashboard js de 'import { useEffect, useState } from 'react'
+import axios from 'axios'
+import 'bootstrap/dist/css/bootstrap.min.css'
+import Header from './Header'
+
+function AdminDashboard() {
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'etudiant'
+  })
+
+  
+
+  const [users, setUsers] = useState([])
+  const [editUser, setEditUser] = useState(null)
+  const [courses, setCourses] = useState([])
+  const [selectedCourseDetails, setSelectedCourseDetails] = useState(null)
+
+  useEffect(() => {
+    fetchUsers()
+    fetchCourses()
+  }, [])
+
+  const fetchUsers = () => {
+    axios.get('http://localhost:5000/api/auth/users')
+      .then(res => setUsers(res.data))
+      .catch(err => console.log(err))
+  }
+
+  const fetchCourses = () => {
+    axios.get('http://localhost:5000/api/courses')
+      .then(res => setCourses(res.data))
+      .catch(err => console.log(err))
+  }
+
+  const handleAddChange = (e) => {
+    setNewUser({ ...newUser, [e.target.name]: e.target.value })
+  }
+
+  const handleAddSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      await axios.post('http://localhost:5000/api/auth/register', newUser)
+      setNewUser({ name: '', email: '', password: '', role: 'etudiant' })
+      fetchUsers()
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Tu es sûre de vouloir supprimer cet utilisateur ?')) {
+      try {
+        await axios.delete(http://localhost:5000/api/auth/users/${id})
+        setUsers(users.filter(user => user._id !== id))
+      } catch (err) {
+        console.log(err)
+      }
+    }
+  }
+
+  const handleEditChange = (e) => {
+    setEditUser({ ...editUser, [e.target.name]: e.target.value })
+  }
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      await axios.put(http://localhost:5000/api/auth/users/${editUser._id}, editUser)
+      setEditUser(null)
+      fetchUsers()
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
+  const showCourseDetails = async (courseId) => {
+    try {
+      const res = await axios.get(http://localhost:5000/api/courses/${courseId})
+      setSelectedCourseDetails(res.data)
+    } catch (err) {
+      alert('Erreur lors du chargement des détails du cours')
+    }
+  }
+
+  return (
+    <div className="container mt-5">
+      <Header />
+      <h2>Dashboard Admin</h2>
+
+      {/* Liste des cours + voir étudiants */}
+      <div className="mt-5">
+        <h4>Cours créés</h4>
+        <ul className="list-group">
+          {courses.length === 0 ? (
+            <li className="list-group-item">Aucun cours</li>
+          ) : (
+            courses.map(course => (
+              <li key={course._id} className="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>{course.titre}</strong> – {course.niveau} – <small>{course.categorie}</small>
+                </div>
+                <button className="btn btn-sm btn-info" onClick={() => showCourseDetails(course._id)}>
+                  Voir les étudiants inscrits
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+
+      {selectedCourseDetails && (
+        <div className="card mt-4 p-3">
+          <h5>Étudiants inscrits à : {selectedCourseDetails.titre}</h5>
+          <ul className="list-group">
+            {selectedCourseDetails.inscrits.length === 0 ? (
+              <li className="list-group-item">Aucun étudiant inscrit</li>
+            ) : (
+              selectedCourseDetails.inscrits.map(etud => (
+                <li key={etud._id} className="list-group-item">
+                  {etud.name} ({etud.email})
+                </li>
+              ))
+            )}
+          </ul>
+          <button className="btn btn-secondary mt-3" onClick={() => setSelectedCourseDetails(null)}>
+            Fermer
+          </button>
+        </div>
+      )}
+
+      {/* Table des utilisateurs */}
+      <h4 className="mt-5">Gestion des utilisateurs</h4>
+      <table className="table table-bordered mt-3">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>Rôle</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.length === 0 ? (
+            <tr><td colSpan="4">Aucun utilisateur trouvé</td></tr>
+          ) : (
+            users.map(user => (
+              <tr key={user._id}>
+                <td>{user.name}</td>
+                <td>{user.email}</td>
+                <td>{user.role}</td>
+                <td>
+                  <button
+                    className="btn btn-warning btn-sm me-2"
+                    onClick={() => setEditUser(user)}
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(user._id)}
+                  >
+                    Supprimer
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+
+      {/* Modifier utilisateur */}
+      {editUser && (
+        <div className="card p-4 mt-4">
+          <h4>Modifier l'utilisateur</h4>
+          <form onSubmit={handleEditSubmit}>
+            <div className="mb-3">
+              <label>Nom</label>
+              <input type="text" name="name" className="form-control" value={editUser.name} onChange={handleEditChange} />
+            </div>
+            <div className="mb-3">
+              <label>Email</label>
+              <input type="email" name="email" className="form-control" value={editUser.email} onChange={handleEditChange} />
+            </div>
+            <div className="mb-3">
+              <label>Rôle</label>
+              <select name="role" className="form-select" value={editUser.role} onChange={handleEditChange}>
+                <option value="admin">Admin</option>
+                <option value="enseignant">Enseignant</option>
+                <option value="etudiant">Étudiant</option>
+              </select>
+            </div>
+            <button type="submit" className="btn btn-success me-2">Enregistrer</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setEditUser(null)}>Annuler</button>
+          </form>
+        </div>
+      )}
+
+      {/* Ajouter utilisateur */}
+      <div className="card p-4 mt-4">
+        <h4>Ajouter un nouvel utilisateur</h4>
+        <form onSubmit={handleAddSubmit}>
+          <div className="mb-3">
+            <label>Nom</label>
+            <input type="text" name="name" className="form-control" value={newUser.name} onChange={handleAddChange} />
+          </div>
+          <div className="mb-3">
+            <label>Email</label>
+            <input type="email" name="email" className="form-control" value={newUser.email} onChange={handleAddChange} />
+          </div>
+          <div className="mb-3">
+            <label>Mot de passe</label>
+            <input type="password" name="password" className="form-control" value={newUser.password} onChange={handleAddChange} />
+          </div>
+          <div className="mb-3">
+            <label>Rôle</label>
+            <select name="role" className="form-select" value={newUser.role} onChange={handleAddChange}>
+              <option value="etudiant">Étudiant</option>
+              <option value="enseignant">Enseignant</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button type="submit" className="btn btn-primary">Ajouter</button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+export default AdminDashboard
+'    coursecontentmanager js de 'import { useEffect, useState } from 'react'
+import axios from 'axios'
+
+function CourseContentManager({ courseId }) {
+  const [contents, setContents] = useState([])
+  const [form, setForm] = useState({
+    titre: '',
+    description: '',
+    type: 'document',
+    fichier: null
+  })
+
+  useEffect(() => {
+    if (courseId) fetchContents()
+  }, [courseId])
+
+  const fetchContents = async () => {
+    try {
+      const res = await axios.get(http://localhost:5000/api/contents/course/${courseId})
+      setContents(res.data)
+    } catch (err) {
+      console.error('Erreur lors du chargement des contenus:', err)
+    }
+  }
+
+  const handleChange = (e) => {
+    const { name, value, files } = e.target
+    if (name === 'fichier') {
+      setForm({ ...form, fichier: files[0] })
+    } else {
+      setForm({ ...form, [name]: value })
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    const storedUser = JSON.parse(localStorage.getItem('user'))
+    if (!storedUser || !storedUser._id) {
+      alert('Utilisateur non connecté')
+      return
+    }
+
+    try {
+      // Étape 1 : Upload fichier
+      const formData = new FormData()
+      formData.append('file', form.fichier)
+
+      const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      // Étape 2 : Sauvegarder le contenu
+      await axios.post('http://localhost:5000/api/contents', {
+        titre: form.titre,
+        description: form.description,
+        type: form.type,
+        fichier: uploadRes.data.path,
+        course: courseId,
+        enseignant: storedUser._id
+      })
+
+      // Reset du formulaire et refresh
+      setForm({ titre: '', description: '', type: 'document', fichier: null })
+      fetchContents()
+    } catch (err) {
+      console.error('Erreur lors de l’ajout de contenu:', err)
+      alert('Une erreur est survenue lors de l’ajout du contenu.')
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Supprimer ce contenu ?')) {
+      try {
+        await axios.delete(http://localhost:5000/api/contents/${id})
+        fetchContents()
+      } catch (err) {
+        console.error('Erreur suppression contenu:', err)
+      }
+    }
+  }
+
+  return (
+    <div className="mt-3 mb-4">
+      <h5>Ajouter un contenu</h5>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          name="titre"
+          placeholder="Titre"
+          className="form-control mb-2"
+          value={form.titre}
+          onChange={handleChange}
+          required
+        />
+        <input
+          type="text"
+          name="description"
+          placeholder="Description"
+          className="form-control mb-2"
+          value={form.description}
+          onChange={handleChange}
+          required
+        />
+        <select
+          name="type"
+          className="form-select mb-2"
+          value={form.type}
+          onChange={handleChange}
+        >
+          <option value="document">Document</option>
+          <option value="video">Vidéo</option>
+        </select>
+        <input
+          type="file"
+          name="fichier"
+          className="form-control mb-2"
+          onChange={handleChange}
+          required
+        />
+        <button className="btn btn-primary">Ajouter</button>
+      </form>
+
+      <h6 className="mt-4">Contenus existants</h6>
+      <ul className="list-group">
+        {contents.map(c => (
+          <li
+            key={c._id}
+            className="list-group-item d-flex justify-content-between align-items-center"
+          >
+            <div>
+              <strong>{c.titre}</strong> ({c.type})<br />
+              <small>{c.description}</small>
+            </div>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => handleDelete(c._id)}
+            >
+              Supprimer
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+export default CourseContentManager
+'     coursecontentviewer js de "import { useEffect, useState } from 'react'
+import axios from 'axios'
+
+function CourseContentViewer({ courseId }) {
+  const [contents, setContents] = useState([])
+
+  useEffect(() => {
+    fetchContents()
+  }, [])
+
+  const fetchContents = async () => {
+    try {
+      const res = await axios.get(http://localhost:5000/api/contents/course/${courseId})
+      setContents(res.data)
+    } catch (error) {
+      console.error('Erreur lors du chargement des contenus :', error)
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <h5>Contenus du cours</h5>
+      {contents.length === 0 ? (
+        <p>Aucun contenu disponible.</p>
+      ) : (
+        <ul className="list-group">
+          {contents.map(c => (
+            <li key={c._id} className="list-group-item">
+              <strong>{c.titre}</strong> ({c.type})<br />
+              {c.description && <small>{c.description}</small>}<br />
+
+              {c.type === 'document' ? (
+                <a
+                  href={http://localhost:5000${c.fichier}}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-outline-primary btn-sm mt-2"
+                >
+                  📄 Ouvrir le document
+                </a>
+              ) : (
+                <video width="100%" height="300" controls className="mt-2">
+                  <source src={http://localhost:5000${c.fichier}} type="video/mp4" />
+                  Votre navigateur ne supporte pas la lecture vidéo.
+                </video>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export default CourseContentViewer
+"    enseignantdashboard js de 'import { useEffect, useState } from 'react'
+import axios from 'axios'
+import Header from './Header'
+import CourseContentManager from './CourseContentManager'
+
+function EnseignantDashboard() {
+  const [user, setUser] = useState(null)
+  const [courses, setCourses] = useState([])
+  const [form, setForm] = useState({ titre: '', description: '', niveau: '', categorie: '' })
+  const [editCourse, setEditCourse] = useState(null)
+  const [selectedCourseId, setSelectedCourseId] = useState(null)
+  const [selectedCourseDetails, setSelectedCourseDetails] = useState(null)
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'))
+    setUser(storedUser)
+    if (storedUser) {
+      fetchCourses()
+    }
+  }, [])
+
+  const fetchCourses = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/courses')
+      setCourses(res.data)
+    } catch (error) {
+      console.error('Erreur lors du chargement des cours', error)
+    }
+  }
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      await axios.post('http://localhost:5000/api/courses', {
+        ...form,
+        enseignant: user._id
+      })
+      setForm({ titre: '', description: '', niveau: '', categorie: '' })
+      fetchCourses()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Supprimer ce cours ?')) {
+      try {
+        await axios.delete(http://localhost:5000/api/courses/${id}) // ✅ backticks
+        fetchCourses()
+      } catch (error) {
+        console.error('Erreur lors de la suppression', error)
+      }
+    }
+  }
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      await axios.put(http://localhost:5000/api/courses/${editCourse._id}, editCourse) // ✅ backticks
+      setEditCourse(null)
+      fetchCourses()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const showCourseDetails = async (courseId) => {
+    try {
+      const res = await axios.get(http://localhost:5000/api/courses/${courseId}) // ✅ backticks
+      setSelectedCourseDetails(res.data)
+    } catch (err) {
+      alert('Erreur lors du chargement des étudiants inscrits')
+    }
+  }
+
+  return (
+    <div className="container mt-4">
+      <Header />
+      <h2>Bonjour, {user?.name} (Enseignant)</h2>
+
+      <h4 className="mt-4">Mes cours</h4>
+      <table className="table table-bordered">
+        <thead>
+          <tr>
+            <th>Titre</th>
+            <th>Niveau</th>
+            <th>Catégorie</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {courses
+            .filter(course => course.enseignant?._id === user?._id)
+            .map(course => (
+              <tr key={course._id}>
+                <td>{course.titre}</td>
+                <td>{course.niveau}</td>
+                <td>{course.categorie}</td>
+                <td>
+                  <button className="btn btn-warning btn-sm me-2" onClick={() => setEditCourse(course)}>Modifier</button>
+                  <button className="btn btn-danger btn-sm me-2" onClick={() => handleDelete(course._id)}>Supprimer</button>
+                  <button className="btn btn-info btn-sm me-2" onClick={() => setSelectedCourseId(course._id)}>Contenus</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => showCourseDetails(course._id)}>Étudiants</button>
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+
+      <h4>Ajouter un cours</h4>
+      <form onSubmit={handleSubmit} className="mb-4">
+        <input type="text" name="titre" placeholder="Titre" className="form-control mb-2" value={form.titre} onChange={handleChange} required />
+        <input type="text" name="description" placeholder="Description" className="form-control mb-2" value={form.description} onChange={handleChange} required />
+        <input type="text" name="niveau" placeholder="Niveau" className="form-control mb-2" value={form.niveau} onChange={handleChange} required />
+        <input type="text" name="categorie" placeholder="Catégorie" className="form-control mb-2" value={form.categorie} onChange={handleChange} required />
+        <button className="btn btn-primary">Ajouter</button>
+      </form>
+
+      {editCourse && (
+        <div className="card p-3 mb-4">
+          <h4>Modifier le cours</h4>
+          <form onSubmit={handleEditSubmit}>
+            <input type="text" className="form-control mb-2" value={editCourse.titre} onChange={(e) => setEditCourse({ ...editCourse, titre: e.target.value })} />
+            <input type="text" className="form-control mb-2" value={editCourse.description} onChange={(e) => setEditCourse({ ...editCourse, description: e.target.value })} />
+            <input type="text" className="form-control mb-2" value={editCourse.niveau} onChange={(e) => setEditCourse({ ...editCourse, niveau: e.target.value })} />
+            <input type="text" className="form-control mb-2" value={editCourse.categorie} onChange={(e) => setEditCourse({ ...editCourse, categorie: e.target.value })} />
+            <button className="btn btn-success me-2">Enregistrer</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setEditCourse(null)}>Annuler</button>
+          </form>
+        </div>
+      )}
+
+      {selectedCourseId && (
+        <div className="card p-3 mt-4">
+          <h4>Gérer les contenus du cours</h4>
+          <CourseContentManager courseId={selectedCourseId} />
+          <button className="btn btn-secondary mt-3" onClick={() => setSelectedCourseId(null)}>Fermer</button>
+        </div>
+      )}
+
+      {selectedCourseDetails && (
+        <div className="card p-3 mt-4">
+          <h4>Étudiants inscrits à : {selectedCourseDetails.titre}</h4>
+          <ul className="list-group">
+            {selectedCourseDetails.inscrits.length === 0 ? (
+              <li className="list-group-item">Aucun étudiant inscrit</li>
+            ) : (
+              selectedCourseDetails.inscrits.map(etud => (
+                <li key={etud._id} className="list-group-item">
+                  {etud.name} ({etud.email})
+                </li>
+              ))
+            )}
+          </ul>
+          <button className="btn btn-secondary mt-3" onClick={() => setSelectedCourseDetails(null)}>Fermer</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default EnseignantDashboard
+'      etudiantdashboard js de 'import { useEffect, useState } from 'react'
+import axios from 'axios'
+import Header from './Header'
+import CourseContentViewer from './CourseContentViewer'
+
+function EtudiantDashboard() {
+  const [user, setUser] = useState(null)
+  const [allCourses, setAllCourses] = useState([])
+  const [myCourses, setMyCourses] = useState([])
+  const [selectedCourseId, setSelectedCourseId] = useState(null)
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'))
+    setUser(storedUser)
+
+    if (storedUser) {
+      fetchAllCourses()
+      fetchMyCourses(storedUser._id)
+    }
+  }, [])
+
+  const fetchAllCourses = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/courses')
+      setAllCourses(res.data)
+    } catch (error) {
+      console.error('Erreur lors du chargement des cours', error)
+    }
+  }
+
+  const fetchMyCourses = async (userId) => {
+    try {
+      const res = await axios.get(http://localhost:5000/api/courses/mescours/${userId}) // ✅ backticks ajoutés
+      setMyCourses(res.data)
+    } catch (error) {
+      console.error('Erreur lors du chargement de mes cours', error)
+    }
+  }
+
+  const handleInscription = async (courseId) => {
+    try {
+      await axios.post(http://localhost:5000/api/courses/${courseId}/inscrire, {
+        userId: user._id
+      })
+      alert('Inscription réussie ✅')
+      fetchMyCourses(user._id) // mise à jour de la liste
+    } catch (err) {
+      alert(err.response?.data?.message || 'Erreur lors de l’inscription')
+    }
+  }
+
+  const isInscrit = (courseId) => {
+    return myCourses.some(c => c._id === courseId)
+  }
+
+  return (
+    <div className="container mt-4">
+      <Header />
+      <h2>Bonjour, {user?.name} (Étudiant)</h2>
+
+      <h4 className="mt-4">Cours disponibles</h4>
+      <ul className="list-group mb-4">
+        {allCourses.map(course => (
+          <li
+            key={course._id}
+            className="list-group-item d-flex justify-content-between align-items-center"
+          >
+            <div>
+              <strong>{course.titre}</strong> – {course.niveau}<br />
+              <small>{course.categorie}</small>
+            </div>
+            {isInscrit(course._id) ? (
+              <button
+                className="btn btn-success btn-sm"
+                onClick={() => setSelectedCourseId(course._id)}
+              >
+                Voir le contenu
+              </button> 
+            ) : (
+              <button
+                className="btn btn-outline-primary btn-sm"
+                onClick={() => handleInscription(course._id)}
+              >
+                S'inscrire
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {selectedCourseId && (
+        <div className="card p-3">
+          <CourseContentViewer courseId={selectedCourseId} />
+          <button
+            className="btn btn-secondary mt-3"
+            onClick={() => setSelectedCourseId(null)}
+          >
+            Fermer
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default EtudiantDashboard
+'    header js de "import React from 'react'
+
+function Header() {
+  const user = JSON.parse(localStorage.getItem('user'))
+
+  const logout = () => {
+    localStorage.clear()
+    window.location.href = '/login'
+  }
+
+  if (!user) return null
+
+  return (
+    <div className="alert alert-primary d-flex justify-content-between align-items-center">
+      <div>Bonjour <strong>{user.name}</strong> </div>
+      <button className="btn btn-outline-danger btn-sm" onClick={logout}>Se déconnecter</button>
+    </div>
+  )
+}
+
+export default Header
+"    login js de 'import { useState } from 'react'
+import axios from 'axios'
+import 'bootstrap/dist/css/bootstrap.min.css'
+
+function Login() {
+  const [form, setForm] = useState({ email: '', password: '' })
+  const [message, setMessage] = useState('')
+  // Si tu veux stocker le rôle dans l'état local (optionnel)
+  const [role, setRole] = useState('')
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/login', form)
+      setMessage('Connexion réussie !')
+      setRole(res.data.user.role)
+
+      // Sauvegarder user dans localStorage
+      localStorage.setItem('user', JSON.stringify(res.data.user))
+
+      // Redirection selon le rôle
+      if (res.data.user.role === 'admin') {
+        window.location.href = '/admin'
+      } else if (res.data.user.role === 'enseignant') {
+        window.location.href = '/enseignant'
+      } else {
+        window.location.href = '/etudiant'
+      }
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Erreur')
+    }
+  }
+
+  return (
+    <div className="container mt-5">
+      <h2>Connexion</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-3">
+          <label>Email</label>
+          <input type="email" name="email" className="form-control" onChange={handleChange} required />
+        </div>
+
+        <div className="mb-3">
+          <label>Mot de passe</label>
+          <input type="password" name="password" className="form-control" onChange={handleChange} required />
+        </div>
+
+        <button type="submit" className="btn btn-success">Se connecter</button>
+      </form>
+ <p className="mt-3">
+        Pas encore de compte ? <a href="/">Inscrivez-vous ici</a>
+      </p>
+
+      {message && <div className="alert alert-info mt-3">{message}</div>}
+    </div>
+  )
+}
+
+export default Login
+' register js de "import { useState } from 'react'
+import axios from 'axios'
+import 'bootstrap/dist/css/bootstrap.min.css'
+
+function Register() {
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'etudiant',
+  })
+  const [message, setMessage] = useState('')
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/register', form)
+      setMessage(res.data.message)
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Erreur')
+    }
+  }
+
+  return (
+    <div className="container mt-5">
+      <h2>Inscription</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-3">
+          <label>Nom</label>
+          <input type="text" name="name" className="form-control" onChange={handleChange} />
+        </div>
+
+        <div className="mb-3">
+          <label>Email</label>
+          <input type="email" name="email" className="form-control" onChange={handleChange} />
+        </div>
+
+        <div className="mb-3">
+          <label>Mot de passe</label>
+          <input type="password" name="password" className="form-control" onChange={handleChange} />
+        </div>
+
+        <div className="mb-3">
+          <label>Confirmer mot de passe</label>
+          <input type="password" name="confirmPassword" className="form-control" onChange={handleChange} />
+        </div>
+
+        <div className="mb-3">
+          <label>Rôle</label>
+          <select name="role" className="form-select" onChange={handleChange}>
+            <option value="etudiant">Étudiant</option>
+            <option value="enseignant">Enseignant</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <button type="submit" className="btn btn-primary">S'inscrire</button>
+      </form>
+<p className="mt-3">
+  Vous avez déjà un compte ? <a href="/login">Connectez-vous ici</a>
+</p>
+
+      {message && <div className="alert alert-info mt-3">{message}</div>}
+    </div>
+    
+  )
+}
+
+export default Register
+"  et app js de "import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+
+import Register from './components/Register'
+import Login from './components/Login'
+import AdminDashboard from './components/AdminDashboard'
+import EnseignantDashboard from './components/EnseignantDashboard'
+import EtudiantDashboard from './components/EtudiantDashboard'
+
+function App() {
+
+
+  return (
+     <Router>
+      <div className="container mt-3">
+        <Routes>
+          <Route path="/" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+<Route path="/enseignant" element={<EnseignantDashboard />} />
+          <Route path="/etudiant" element={<EtudiantDashboard />} />
+
+          {/* plus tard : ajouter admin / enseignant / etudiant */}
+        </Routes>
+      </div>
+    </Router>
+  );
+}
+
+export default App;"

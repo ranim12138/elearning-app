@@ -1,0 +1,411 @@
+j'ai un projet elearning node js express mongodb react js jai commencé et je veux ton aide svp je suis pas bien parceque et je veux finir donc commencant paer le backend le dossier models user.js de "// backend/models/User.js
+const mongoose = require('mongoose')
+
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  password: String,
+  role: { type: String, enum: ['admin', 'enseignant', 'etudiant'] }
+})
+
+module.exports = mongoose.model('User', userSchema)
+" le dossier routes auth.js "// backend/routes/auth.js
+const express = require('express')
+const router = express.Router()
+const User = require('../models/user')
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+
+// REGISTER
+router.post('/register', async (req, res) => {
+  const { name, email, password, confirmPassword, role } = req.body
+
+  if (password !== confirmPassword)
+    return res.status(400).json({ message: "Passwords don't match" })
+
+  const userExists = await User.findOne({ email })
+  if (userExists) return res.status(400).json({ message: 'User already exists' })
+
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  const user = new User({ name, email, password: hashedPassword, role })
+  await user.save()
+
+  res.status(201).json({ message: 'User registered successfully' })
+})
+
+// LOGIN
+/*router.post('/login', async (req, res) => {
+  const { email, password } = req.body
+
+  const user = await User.findOne({ email })
+  if (!user) return res.status(400).json({ message: 'User not found' })
+
+  const isMatch = await bcrypt.compare(password, user.password)
+  if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' })
+
+  const token = jwt.sign({ id: user._id, role: user.role }, 'secretkey', { expiresIn: '1d' })
+  res.json({ token, user: { name: user.name, role: user.role } })
+})
+*/
+// backend/routes/auth.js
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user) return res.status(400).json({ message: 'Utilisateur non trouvé' });
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) return res.status(400).json({ message: 'Mot de passe incorrect' });
+
+  const token = jwt.sign({ id: user._id, role: user.role }, 'secretkey', { expiresIn: '1d' });
+
+  res.json({ token, user: { name: user.name, role: user.role } });
+
+  // Liste de tous les utilisateurs (uniquement pour admin)
+router.get('/users', async (req, res) => {
+  const users = await User.find().select('-password') // on cache le mot de passe
+  res.json(users)
+})
+
+// Supprimer un utilisateur par ID
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const deleted = await User.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    res.json({ message: 'Utilisateur supprimé avec succès' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Modifier un utilisateur par ID
+router.put('/users/:id', async (req, res) => {
+  try {
+    const { name, email, role } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { name, email, role },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+
+
+
+
+
+
+});
+
+module.exports = router
+"  et le server.js "// backend/server.js
+const express = require('express')
+const mongoose = require('mongoose')
+const cors = require('cors')
+
+const authRoutes = require('./routes/auth')
+
+const app = express()
+app.use(cors())
+app.use(express.json())
+
+mongoose.connect('mongodb://127.0.0.1:27017/elearning')
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error(err))
+
+app.use('/api/auth', authRoutes)
+
+app.listen(5000, () => console.log('Server running on http://localhost:5000'))
+" passant maintenant au frontend le dossier components admindasboard de "import { useEffect, useState } from 'react'
+import axios from 'axios'
+import 'bootstrap/dist/css/bootstrap.min.css'
+
+function AdminDashboard() {
+  const [users, setUsers] = useState([])
+  const [editUser, setEditUser] = useState(null)
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = () => {
+    axios.get('http://localhost:5000/api/auth/users')
+      .then(res => setUsers(res.data))
+      .catch(err => console.log(err))
+  }
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Tu es sûre de vouloir supprimer cet utilisateur ?')) {
+      try {
+        await axios.delete(`http://localhost:5000/api/auth/users/${id}`)
+        setUsers(users.filter(user => user._id !== id))
+      } catch (err) {
+        console.log(err)
+      }
+    }
+  }
+
+  const handleEditChange = (e) => {
+    setEditUser({ ...editUser, [e.target.name]: e.target.value })
+  }
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      await axios.put(`http://localhost:5000/api/auth/users/${editUser._id}`, editUser)
+      setEditUser(null)
+      fetchUsers()
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
+  return (
+    <div className="container mt-5">
+      <h2>Gestion des utilisateurs</h2>
+      <table className="table table-bordered mt-4">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>Rôle</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.length === 0 ? (
+            <tr><td colSpan="4">Aucun utilisateur trouvé</td></tr>
+          ) : (
+            users.map(user => (
+              <tr key={user._id}>
+                <td>{user.name}</td>
+                <td>{user.email}</td>
+                <td>{user.role}</td>
+                <td>
+                  <button
+                    className="btn btn-warning btn-sm me-2"
+                    onClick={() => setEditUser(user)}
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(user._id)}
+                  >
+                    Supprimer
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+
+      {editUser && (
+        <div className="card p-4 mt-4">
+          <h4>Modifier l'utilisateur</h4>
+          <form onSubmit={handleEditSubmit}>
+            <div className="mb-3">
+              <label>Nom</label>
+              <input type="text" name="name" className="form-control" value={editUser.name} onChange={handleEditChange} />
+            </div>
+            <div className="mb-3">
+              <label>Email</label>
+              <input type="email" name="email" className="form-control" value={editUser.email} onChange={handleEditChange} />
+            </div>
+            <div className="mb-3">
+              <label>Rôle</label>
+              <select name="role" className="form-select" value={editUser.role} onChange={handleEditChange}>
+                <option value="admin">Admin</option>
+                <option value="enseignant">Enseignant</option>
+                <option value="etudiant">Étudiant</option>
+              </select>
+            </div>
+            <button type="submit" className="btn btn-success me-2">Enregistrer</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setEditUser(null)}>Annuler</button>
+          </form>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default AdminDashboard
+" login.js"// src/components/Login.js
+import { useState } from 'react'
+import axios from 'axios'
+import 'bootstrap/dist/css/bootstrap.min.css'
+
+function Login() {
+  const [form, setForm] = useState({ email: '', password: '' })
+  const [message, setMessage] = useState('')
+  const [role, setRole] = useState('')
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/login', form)
+      setMessage('Connexion réussie !')
+      setRole(res.data.user.role)
+
+      // Redirection selon le rôle (tu peux adapter plus tard)
+      if (res.data.user.role === 'admin') {
+        window.location.href = '/admin'
+      } else if (res.data.user.role === 'enseignant') {
+        window.location.href = '/enseignant'
+      } else {
+        window.location.href = '/etudiant'
+      }
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Erreur')
+    }
+  }
+
+  return (
+    <div className="container mt-5">
+      <h2>Connexion</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-3">
+          <label>Email</label>
+          <input type="email" name="email" className="form-control" onChange={handleChange} />
+        </div>
+
+        <div className="mb-3">
+          <label>Mot de passe</label>
+          <input type="password" name="password" className="form-control" onChange={handleChange} />
+        </div>
+
+        <button type="submit" className="btn btn-success">Se connecter</button>
+      </form>
+<p className="mt-3">
+  Pas encore de compte ? <a href="/">Inscrivez-vous ici</a>
+</p>
+
+      {message && <div className="alert alert-info mt-3">{message}</div>}
+    </div>
+  )
+}
+
+export default Login
+" et register.js"import { useState } from 'react'
+import axios from 'axios'
+import 'bootstrap/dist/css/bootstrap.min.css'
+
+function Register() {
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'etudiant',
+  })
+  const [message, setMessage] = useState('')
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/register', form)
+      setMessage(res.data.message)
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Erreur')
+    }
+  }
+
+  return (
+    <div className="container mt-5">
+      <h2>Inscription</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-3">
+          <label>Nom</label>
+          <input type="text" name="name" className="form-control" onChange={handleChange} />
+        </div>
+
+        <div className="mb-3">
+          <label>Email</label>
+          <input type="email" name="email" className="form-control" onChange={handleChange} />
+        </div>
+
+        <div className="mb-3">
+          <label>Mot de passe</label>
+          <input type="password" name="password" className="form-control" onChange={handleChange} />
+        </div>
+
+        <div className="mb-3">
+          <label>Confirmer mot de passe</label>
+          <input type="password" name="confirmPassword" className="form-control" onChange={handleChange} />
+        </div>
+
+        <div className="mb-3">
+          <label>Rôle</label>
+          <select name="role" className="form-select" onChange={handleChange}>
+            <option value="etudiant">Étudiant</option>
+            <option value="enseignant">Enseignant</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <button type="submit" className="btn btn-primary">S'inscrire</button>
+      </form>
+<p className="mt-3">
+  Vous avez déjà un compte ? <a href="/login">Connectez-vous ici</a>
+</p>
+
+      {message && <div className="alert alert-info mt-3">{message}</div>}
+    </div>
+    
+  )
+}
+
+export default Register
+" et app.js "import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+
+import Register from './components/Register'
+import Login from './components/Login'
+import AdminDashboard from './components/AdminDashboard'
+
+
+function App() {
+
+
+  return (
+     <Router>
+      <div className="container mt-3">
+        <Routes>
+          <Route path="/" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+
+
+          {/* plus tard : ajouter admin / enseignant / etudiant */}
+        </Routes>
+      </div>
+    </Router>
+  );
+}
+
+export default App;
+" 

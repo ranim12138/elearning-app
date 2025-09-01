@@ -1,0 +1,412 @@
+commençant par le backend le dossier models contient 3 fichiers le fichier content.js de 'const mongoose = require('mongoose')
+
+const contentSchema = new mongoose.Schema({
+  type: { type: String, enum: ['document', 'video'], required: true },
+  titre: String,
+  description: String,
+  fichier: String, // chemin du fichier (pas URL externe)
+  course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
+  enseignant: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, { timestamps: true })
+
+module.exports = mongoose.model('Content', contentSchema)
+' le fichier course.js de 'const mongoose = require('mongoose')
+
+const courseSchema = new mongoose.Schema({
+  titre: String,
+  description: String,
+  niveau: String,
+  categorie: String,
+  enseignant: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  inscrits: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+}, { timestamps: true })
+
+module.exports = mongoose.model('Course', courseSchema)
+' le fichier user.js de '// backend/models/User.js
+const mongoose = require('mongoose')
+
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  password: String,
+  role: { type: String, enum: ['admin', 'enseignant', 'etudiant'] }
+})
+
+module.exports = mongoose.model('User', userSchema)
+' le dossier routes contient 4 fichiers le fichier auth.js de "// backend/routes/auth.js
+const express = require('express')
+const router = express.Router()
+const User = require('../models/user')
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+
+// === REGISTER ===
+router.post('/register', async (req, res) => {
+  const { name, email, password, confirmPassword, role } = req.body
+
+  if (password !== confirmPassword)
+    return res.status(400).json({ message: "Passwords don't match" })
+
+  const userExists = await User.findOne({ email })
+  if (userExists) return res.status(400).json({ message: 'User already exists' })
+
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  const user = new User({ name, email, password: hashedPassword, role })
+  await user.save()
+
+  res.status(201).json({ message: 'User registered successfully' })
+})
+
+// === LOGIN ===
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user) return res.status(400).json({ message: 'Utilisateur non trouvé' });
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) return res.status(400).json({ message: 'Mot de passe incorrect' });
+
+  const token = jwt.sign({ id: user._id, role: user.role }, 'secretkey', { expiresIn: '1d' });
+
+  res.json({ token, user: { name: user.name, role: user.role } });
+});
+
+// === GET ALL USERS ===
+router.get('/users', async (req, res) => {
+  const users = await User.find().select('-password') // hide password
+  res.json(users)
+})
+
+// === DELETE USER ===
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const deleted = await User.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    res.json({ message: 'Utilisateur supprimé avec succès' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+})
+
+// === UPDATE USER ===
+router.put('/users/:id', async (req, res) => {
+  try {
+    const { name, email, role } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { name, email, role },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+})
+
+module.exports = router
+"  le fichiers contents.js de "const express = require('express')
+const router = express.Router()
+const Content = require('../models/Content')
+
+// === Ajouter un contenu ===
+router.post('/', async (req, res) => {
+  try {
+    const content = new Content(req.body)
+    await content.save()
+    res.status(201).json(content)
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err })
+  }
+})
+
+// === Afficher les contenus d’un cours ===
+router.get('/course/:courseId', async (req, res) => {
+  try {
+    const contents = await Content.find({ course: req.params.courseId })
+    res.json(contents)
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+// === Supprimer un contenu ===
+router.delete('/:id', async (req, res) => {
+  try {
+    const deleted = await Content.findByIdAndDelete(req.params.id)
+    if (!deleted) return res.status(404).json({ message: 'Contenu non trouvé' })
+    res.json({ message: 'Contenu supprimé avec succès' })
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+module.exports = router" le fichier courses.js de "const mongoose = require('mongoose');
+const express = require('express')
+const router = express.Router()
+const Course = require('../models/Course')
+const User = require('../models/user');
+
+
+// === Créer un cours ===
+router.post('/', async (req, res) => {
+  try {
+    const course = new Course(req.body)
+    await course.save()
+    res.status(201).json(course)
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err })
+  }
+})
+
+// === Récupérer tous les cours ===
+router.get('/', async (req, res) => {
+  try {
+    const courses = await Course.find().populate('enseignant', 'name email')
+    res.json(courses)
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+/* 🔁 CORRECTION ICI : on place cette route AVANT /:id */
+// === Cours auxquels l’étudiant est inscrit ===
+router.get('/mescours/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId
+    
+    // Vérifiez que l'ID est valide
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'ID utilisateur invalide' })
+    }
+
+    const courses = await Course.find({ inscrits: userId })
+      .populate('enseignant', 'name email')
+    res.json(courses)
+  } catch (err) {
+    console.error('Erreur dans /mescours/:userId 👉', err)
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+// === Récupérer un seul cours + étudiants inscrits ===
+router.get('/:id', async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+      .populate('enseignant', 'name email')
+      .populate('inscrits', 'name email role')
+
+    if (!course) return res.status(404).json({ message: 'Cours non trouvé' })
+
+    res.json(course)
+  } catch (err) {
+    console.error('Erreur cours/:id 👉', err)
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+
+// === Modifier un cours ===
+router.put('/:id', async (req, res) => {
+  try {
+    const course = await Course.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    if (!course) return res.status(404).json({ message: 'Cours non trouvé' })
+    res.json(course)
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+// === Supprimer un cours ===
+router.delete('/:id', async (req, res) => {
+  try {
+    const course = await Course.findByIdAndDelete(req.params.id)
+    if (!course) return res.status(404).json({ message: 'Cours non trouvé' })
+    res.json({ message: 'Cours supprimé avec succès' })
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+// === Inscrire un étudiant à un cours ===
+router.post('/:id/inscrire', async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+    if (!course) return res.status(404).json({ message: 'Cours non trouvé' })
+
+    if (course.inscrits.includes(req.body.userId)) {
+      return res.status(400).json({ message: 'Déjà inscrit à ce cours' })
+    }
+
+    course.inscrits.push(req.body.userId)
+    await course.save()
+
+    res.json({ message: 'Inscription réussie' })
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+module.exports = router
+" le fichier upload.js de "const mongoose = require('mongoose');
+const express = require('express')
+const router = express.Router()
+const Course = require('../models/Course')
+const User = require('../models/user');
+
+
+// === Créer un cours ===
+router.post('/', async (req, res) => {
+  try {
+    const course = new Course(req.body)
+    await course.save()
+    res.status(201).json(course)
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err })
+  }
+})
+
+// === Récupérer tous les cours ===
+router.get('/', async (req, res) => {
+  try {
+    const courses = await Course.find().populate('enseignant', 'name email')
+    res.json(courses)
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+/* 🔁 CORRECTION ICI : on place cette route AVANT /:id */
+// === Cours auxquels l’étudiant est inscrit ===
+router.get('/mescours/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId
+    
+    // Vérifiez que l'ID est valide
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'ID utilisateur invalide' })
+    }
+
+    const courses = await Course.find({ inscrits: userId })
+      .populate('enseignant', 'name email')
+    res.json(courses)
+  } catch (err) {
+    console.error('Erreur dans /mescours/:userId 👉', err)
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+// === Récupérer un seul cours + étudiants inscrits ===
+router.get('/:id', async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+      .populate('enseignant', 'name email')
+      .populate('inscrits', 'name email role')
+
+    if (!course) return res.status(404).json({ message: 'Cours non trouvé' })
+
+    res.json(course)
+  } catch (err) {
+    console.error('Erreur cours/:id 👉', err)
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+
+// === Modifier un cours ===
+router.put('/:id', async (req, res) => {
+  try {
+    const course = await Course.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    if (!course) return res.status(404).json({ message: 'Cours non trouvé' })
+    res.json(course)
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+// === Supprimer un cours ===
+router.delete('/:id', async (req, res) => {
+  try {
+    const course = await Course.findByIdAndDelete(req.params.id)
+    if (!course) return res.status(404).json({ message: 'Cours non trouvé' })
+    res.json({ message: 'Cours supprimé avec succès' })
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+// === Inscrire un étudiant à un cours ===
+router.post('/:id/inscrire', async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+    if (!course) return res.status(404).json({ message: 'Cours non trouvé' })
+
+    if (course.inscrits.includes(req.body.userId)) {
+      return res.status(400).json({ message: 'Déjà inscrit à ce cours' })
+    }
+
+    course.inscrits.push(req.body.userId)
+    await course.save()
+
+    res.json({ message: 'Inscription réussie' })
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' })
+  }
+})
+
+module.exports = router
+" et le server.js "// backend/server.js
+const express = require('express')
+const mongoose = require('mongoose')
+const cors = require('cors')
+
+const authRoutes = require('./routes/auth')
+
+/*const fs = require('fs')
+const path = require('path')
+
+
+const uploadDir = path.join(__dirname, 'uploads')
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir)
+  console.log('Dossier uploads créé automatiquement')
+}*/
+
+const app = express()
+app.use(cors())
+app.use(express.json())
+
+mongoose.connect('mongodb://127.0.0.1:27017/elearning')
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error(err))
+
+  
+
+
+app.use('/api/auth', authRoutes)
+//app.use('/uploads', express.static('uploads')) // pour servir les PDFs
+
+const courseRoutes = require('./routes/courses')
+app.use('/api/courses', courseRoutes)
+
+const contentRoutes = require('./routes/contents')
+app.use('/api/contents', contentRoutes)
+
+const uploadRoutes = require('./routes/upload')
+app.use('/api/upload', uploadRoutes)
+app.use('/uploads', express.static('uploads'))
+
+
+app.listen(5000, () => console.log('Server running on http://localhost:5000'))
+"
