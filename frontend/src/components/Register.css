@@ -1,0 +1,85 @@
+.register-page {
+  height: 100vh;
+  background: linear-gradient(135deg, #7b2ff7, #f107a3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.register-container {
+  background: white;
+  display: flex;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  width: 850px;
+  max-width: 95%;
+}
+
+.form-section {
+  flex: 1;
+  padding: 40px;
+}
+
+.form-section h2 {
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.form-section form {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-section input,
+.form-section select {
+  margin-bottom: 15px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.form-section button {
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.form-section button:hover {
+  background-color: #0056b3;
+}
+
+.form-section p {
+  margin-top: 15px;
+}
+
+.form-section a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.message {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #e7f3ff;
+  color: #004085;
+  border: 1px solid #b8daff;
+  border-radius: 5px;
+}
+
+.image-section {
+  flex: 1;
+  background: #f9f9f9;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.image-section img {
+  max-width: 100%;
+  height: auto;
+}

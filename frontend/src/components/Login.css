@@ -1,0 +1,54 @@
+.login-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.login-card {
+  max-width: 900px;
+  width: 100%;
+  background: white;
+}
+
+.login-form {
+  flex: 1;
+  min-width: 300px;
+}
+
+.login-image {
+  flex: 1;
+  max-width: 400px;
+}
+
+.form-floating {
+  position: relative;
+}
+
+.form-control:focus {
+  border-color: #4e73df;
+  box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+.btn-primary {
+  background-color: #4e73df;
+  border-color: #4e73df;
+}
+
+.btn-primary:hover {
+  background-color: #3a56c4;
+  border-color: #3a56c4;
+}
+
+.btn-primary:disabled {
+  background-color: #4e73df;
+  border-color: #4e73df;
+  opacity: 0.65;
+}
+
+.alert {
+  border: none;
+  border-radius: 0.5rem;
+}
+
+.object-fit-cover {
+  object-fit: cover;
+}
